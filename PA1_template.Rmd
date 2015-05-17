@@ -16,23 +16,8 @@ library(lattice)
 # Setting seed for reproducibility
 set.seed(100000)
 
-# setting the path
-path <- getwd()
-path
-
-# getting the data - Download the file and putting it in the Data folder
-url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
-f <- "repdata%2Fdata%2Factivity.zip"
-if (!file.exists(path)) {dir.create(path)}
-download.file(url, file.path(path, f))
-
-# Unzipping the file
-executable <- file.path("C:", "Program Files (x86)", "7-Zip", "7z.exe")
-parameters <- "x"
-cmd <- paste(paste0("\"", executable, "\""), parameters, paste0("\"", file.path(path, f), "\""))
-system(cmd) # 7-zip is required to run on machine
-
 # Reading the subject files
+unzip("activity.zip")
 CompleteData <- read.csv("activity.csv")
 str(CompleteData)
 summary(CompleteData)
@@ -73,7 +58,6 @@ sum(is.na(CompleteData)) # Calculate and report the total number of missing valu
 
 # Create a new dataset that is equal to the original dataset but with the missing data filled in.
 CompleteData <- merge(CompleteData, TotalStepsPerInt, by = "interval", suffixes = c("", "AA"))
-?merge
 nullvalues <- is.na(CompleteData$steps)
 CompleteData$steps[nullvalues] <- CompleteData$stepsAA[nullvalues]
 CompleteData <- CompleteData[, c(1:3)]
