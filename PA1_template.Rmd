@@ -1,25 +1,106 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research Peer Assessment 1"
+author: "Nicholas Khoo"
+date: "Sunday, May 17, 2015"
+output: html_document
 ---
 
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-## Loading and preprocessing the data
+Loading and preprocessing the required data:
 
+```{r Loading and Preprocessing the Data}
+# libraries
+library(lattice)
 
+# Setting seed for reproducibility
+set.seed(100000)
 
-## What is mean total number of steps taken per day?
+# setting the path
+path <- getwd()
+path
 
+# getting the data - Download the file and putting it in the Data folder
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+f <- "repdata%2Fdata%2Factivity.zip"
+if (!file.exists(path)) {dir.create(path)}
+download.file(url, file.path(path, f))
 
+# Unzipping the file
+executable <- file.path("C:", "Program Files (x86)", "7-Zip", "7z.exe")
+parameters <- "x"
+cmd <- paste(paste0("\"", executable, "\""), parameters, paste0("\"", file.path(path, f), "\""))
+system(cmd) # 7-zip is required to run on machine
 
-## What is the average daily activity pattern?
+# Reading the subject files
+CompleteData <- read.csv("activity.csv")
+str(CompleteData)
+summary(CompleteData)
 
+# pre processing the date
+CompleteData$date <- as.Date(CompleteData$date, "%Y-%m-%d")
 
+# Removing the null values
+CompleteData<-na.omit(CompleteData)
+summary(CompleteData)
+```
 
-## Imputing missing values
+Ignoring the missing values in the dataset, we will find out the mean and median total number of steps taken per day with a plot:
 
+```{r Mean and Median Total Number of Steps Take Per Day, echo=TRUE}
+TotalStepsPerDay <- aggregate(steps ~ date, data = CompleteData, sum, na.rm = TRUE)
+with(TotalStepsPerDay, plot(date, steps, type = "h", col = "red", main = "Number of steps per day", xlab = "Date", ylab = "Number of Steps")) 
 
+# Calculate and report the mean and median total number of steps taken per day
+mean(TotalStepsPerDay$steps)
+median(TotalStepsPerDay$steps)
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+With a time series plot, we will examine the average daily activity pattern of the 5-minute interval and the average number of steps taken, averaged across all days 
+
+```{r Average Daily Activity Pattern, echo=TRUE}
+TotalStepsPerInt <- aggregate(steps ~ interval, data = CompleteData, mean, na.rm = TRUE)
+str(TotalStepsPerInt)
+with(TotalStepsPerInt, plot(interval, steps, type = "l", col = "red", main = "Total Steps per 5-min interval", xlab = "5 minutes intervals", ylab = "Number of Steps"))
+TotalStepsPerInt$interval[which.max(TotalStepsPerInt$steps)] # Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```
+
+There are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data. This sections seeks to analyse the missing data further.
+
+```{r Inputting Missing Values, echo=TRUE}
+CompleteData <- read.csv("activity.csv") 
+sum(is.na(CompleteData)) # Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
+# Create a new dataset that is equal to the original dataset but with the missing data filled in.
+CompleteData <- merge(CompleteData, TotalStepsPerInt, by = "interval", suffixes = c("", "AA"))
+?merge
+nullvalues <- is.na(CompleteData$steps)
+CompleteData$steps[nullvalues] <- CompleteData$stepsAA[nullvalues]
+CompleteData <- CompleteData[, c(1:3)]
+sum(is.na(CompleteData)) # verified
+str(CompleteData)
+
+# Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+CompleteData$date <- as.Date(CompleteData$date, "%Y-%m-%d")
+TotalStepsPerDay <- aggregate(steps ~ date, data = CompleteData, sum, na.rm = TRUE)
+with(TotalStepsPerDay, plot(date, steps, type = "h", col = "red", main = "Number of steps per day", xlab = "Date", ylab = "Number of Steps")) 
+
+mean(TotalStepsPerDay$steps)
+median(TotalStepsPerDay$steps)
+
+# Impact - the mean and median is now the same as compared to before where there was a slight variance.
+```
+
+Are there differences in activity patterns between weekdays and weekends?
+
+Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+We will make a panel plot containing a time series plot of the 5-minute interval  and the average number of steps taken, averaged across all weekday days or weekend days.
+
+```{r Weekdays vs Weekends, echo=TRUE}
+CompleteData$day <- "weekday"
+CompleteData$day[weekdays(as.Date(CompleteData$date), abb=T) %in% c("Sat","Sun")]  <- "weekend" 
+
+TotalStepsPerInt <- aggregate(steps ~ interval + day, data = CompleteData, mean, na.rm = TRUE)
+xyplot(steps ~ interval | day, TotalStepsPerInt, type = "l", layout = c(1, 2), xlab = "5 minutes Intervals", ylab = "Number of steps")
+```
